@@ -13,22 +13,30 @@ struct ArtGalleryItemView: View {
     @State private var isDoubleTap = false
             //MARK: -gestures:
     private var rotationGesture: some Gesture {
-        RotationGesture()
-            .onChanged { angle in
-                withAnimation(Animation.linear(duration: 1.0).repeatForever(autoreverses: true)) {
+        RotateGesture()
+            .onChanged { gestureValue in
+                let angle = gestureValue.rotation
+                withAnimation(Animation.linear(duration: 0.1)) {
                     viewModel.rotation = angle
                 }
                 viewModel.currentGesture = "Rotate"
             }
             .onEnded { _ in
-                viewModel.currentGesture = ""
+                withAnimation(Animation.linear(duration: 0.5)) {
+                    viewModel.rotation = .degrees(0)  
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    withAnimation {
+                        viewModel.currentGesture = ""
+                    }
+                }
             }
     }
 
     private var dragGesture: some Gesture {
         DragGesture()
             .onChanged { value in
-                withAnimation(Animation.linear(duration: 1.0).repeatForever(autoreverses: true)) {
+                withAnimation(Animation.linear(duration: 1.0)) {
                     viewModel.offsetX += value.translation.width
                     viewModel.offsetY += value.translation.height
                 }
@@ -38,6 +46,7 @@ struct ArtGalleryItemView: View {
                 viewModel.currentGesture = ""
             }
     }
+
 
     private var tapGesture: some Gesture {
         TapGesture()
@@ -58,18 +67,27 @@ struct ArtGalleryItemView: View {
     private var longPressGesture: some Gesture {
         LongPressGesture()
             .onChanged { _ in
-                withAnimation(Animation.linear(duration: 1.0).repeatForever(autoreverses: true)) {
-                    viewModel.rotation = .degrees(360)
+                let timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+                    withAnimation(Animation.easeInOut(duration: 0.5)) {
+                        viewModel.rotation = .degrees(20)
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        withAnimation(Animation.easeInOut(duration: 0.5)) {
+                            viewModel.rotation = .degrees(0)
+                        }
+                    }
                 }
+                RunLoop.main.add(timer, forMode: .common)
             }
             .onEnded { _ in
-                withAnimation(.easeInOut(duration: 0.5)) {
-                    viewModel.rotation = .degrees(0)
-                    viewModel.scale = 1.0
-                }
+                viewModel.rotation = .degrees(0)
+                viewModel.scale = 1.0
                 viewModel.currentGesture = "Long Press"
             }
     }
+
+
+
 
     private var doubleTapLongPressGesture: some Gesture {
         SimultaneousGesture(
@@ -87,27 +105,42 @@ struct ArtGalleryItemView: View {
             viewModel.currentGesture = "Double Tap + Long Press"
         }
     }
-   //MARK: -body
-    var body: some View {
-        VStack {
-            Image(viewModel.artPiece.imageName)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 300, height: 300)
-                .scaleEffect(viewModel.scale)
-                .rotationEffect(viewModel.rotation)
-                .offset(x: viewModel.offsetX, y: viewModel.offsetY)
-                .gesture(rotationGesture)
-                .gesture(dragGesture)
-                .gesture(tapGesture)
-                .gesture(longPressGesture)
-                .gesture(doubleTapLongPressGesture)
-
-            Text("Current Gesture: \(viewModel.currentGesture)")
-                .font(.title3)
-                .foregroundColor(Color("darkBrown"))
-                .padding()
-        }
-        .background(Color("Cream").ignoresSafeArea())
+    
+    private var magnificationGesture: some Gesture {
+            MagnificationGesture()
+                .onChanged { scale in
+                    withAnimation {
+                        viewModel.scale *= scale
+                    }
+                    viewModel.currentGesture = "Magnify"
+                }
+                .onEnded { _ in
+                    viewModel.currentGesture = ""
+                }
     }
-}
+
+        // MARK: - body
+        var body: some View {
+            VStack {
+                Image(viewModel.artPiece.imageName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 300, height: 300)
+                    .scaleEffect(viewModel.scale)
+                    .rotationEffect(viewModel.rotation)
+                    .offset(x: viewModel.offsetX, y: viewModel.offsetY)
+                    .gesture(rotationGesture)
+                    .gesture(dragGesture)
+                    .gesture(tapGesture)
+                    .gesture(longPressGesture)
+                    .gesture(doubleTapLongPressGesture)
+                    .gesture(magnificationGesture)
+
+                Text("Current Gesture: \(viewModel.currentGesture)")
+                    .font(.title3)
+                    .foregroundColor(Color("darkBrown"))
+                    .padding()
+            }
+            .background(Color("Cream").ignoresSafeArea())
+        }
+    }
